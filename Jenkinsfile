@@ -11,19 +11,34 @@ pipeline {
             }
             steps {
                 sh '''
-                    ls -la
-                    node --version
-                    npm --version
                     npm ci
                     npm run build
-                    ls -la
                 '''
             }
         }
-    }  
+
+        stage('Test') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                    reuseNode true
+                }
+            }
+            steps {
+                sh '''
+                    npm ci
+                    mkdir -p test-results
+                    # Run React tests in CI mode so jest-junit produces XML
+                    CI=true npm test
+                '''
+            }
+        }
+    }
+
     post {
         always {
-            junit allowEmptyResults: true, testResults: 'test-results/**/*.xml'
+            // Archive test results at pipeline level
+            junit 'test-results/**/*.xml'
         }
-    }  
+    }
 }
